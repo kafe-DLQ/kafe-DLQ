@@ -1,28 +1,28 @@
 import { Kafka } from 'kafkajs';
 import * as dotenv from 'dotenv';
 
-import { kafkaMessage } from './types';
-import { KafkaConfig, ProducerConfig, Producer } from 'kafkajs';
+import { producerMessages } from './types';
+import { Message, KafkaJSProtocolError } from 'kafkajs';
 
 dotenv.config();
 
-class KafeDLQClient extends Kafka {
+class KafeDLQClient {
     kafeAdmin: any;
     kafeProducer: any;
     kafeConsumer: any;
-    dlqTopic: any;
+    customDLQ: boolean;
+    callback?: (message: any) => boolean; 
 
-    constructor(configs: KafkaConfig, dlqTopic?: string) {
-        super(configs);
+    constructor(client: any, customDLQ: boolean = false, callback?: Function) {
 
-        this.kafeAdmin = this.admin();
-        this.kafeProducer = this.producer();
-        this.dlqTopic = dlqTopic ? dlqTopic : null;
+        this.kafeAdmin = client.admin();
+        this.kafeProducer = client.producer();
+        this.customDLQ = customDLQ;
     };
 
     producer(): any {
         const DLQClient = this;
-        const { kafeProducer, dlqTopic } = DLQClient;
+        const { kafeProducer, customDLQ } = DLQClient;
 
         console.log('Original Kafka producer: ', kafeProducer);
 
@@ -31,42 +31,80 @@ class KafeDLQClient extends Kafka {
             connect() {
                 return kafeProducer.connect();
             },
-            async send(topic: string, messages: kafkaMessage[]) {
-                try {
-                    await kafeProducer.send({
-                        topic,
-                        messages
-                    });
-                } catch(err: any) {
-                    console.log(err);
-                    await this.createDLQTopic();
+            async send(producerMessages: producerMessages) {
+                const { topic, messages } = producerMessages;
+                if (!messages.length) return;
 
-                    const errObject = {
-                        originalTopic: topic,
-                        originalMessages: messages,
-                        errorMessage: err.message,
+                //Send each message individually to allow for message specific idenificaton of failures
+                for (const message of messages) {
+                    try {
+                        await kafeProducer.connect();
+                        await kafeProducer.send({
+                            topic,
+                            messages: [message],
+                        });
+
+                        await kafeProducer.disconnect();
+                    } catch(err: any) {
+                        console.log(`Error while sending message ${message}: ${err}`);
+
+                        await this.sendToDLQ(
+                            customDLQ ? `DLQ-${topic}` : 'DeadLetterQueue', 
+                            message, 
+                            'Producer',
+                            err);
                     };
-
-                    this.kafeProducer.send({
-                      topic: this.dlqTopic ? this.dlqTopic : 'Dead Letter Queue Message',
-                      messages: [
-                        {
-                            timestamp: Date.now(),
-                            value: JSON.stringify(errObject),
-                        }],
-                    });
-                };
+                };  
             },
         };
 
         return DLQProducer;
     };
 
-    async createDLQTopic() {
+    async sendToDLQ(topic: string, message: Message, clientType: string, error: any) {
+        if (!topic) return;
+
+        const DLQClient = this;
+        const { kafeAdmin, kafeProducer } = DLQClient;
+
+        try {
+            //Get all existing topics and see if the DLQ topic already exists
+            const existingTopics = await kafeAdmin.listTopics();
+            const DLQTopic = existingTopics.filter((topicName: string) => topicName === topic);
+
+            //If the DLQ topic doesn't exist the create it
+            if (!DLQTopic.length) await this.createDLQTopic(topic);
+
+            const DLQMessage = {
+                timestamp: new Date().toLocaleString('en-US', {
+                    timeStyle: 'long',
+                    dateStyle: 'short',
+                    hour12: false,
+                }),
+                value: {
+                    originalMessage: message.value,
+                    error,
+                    clientType,
+                },
+            };
+
+            await kafeProducer.connect();
+            await kafeProducer.send({
+                topic,
+                messages: [DLQMessage],
+            });
+
+            await kafeProducer.disconnect();
+        } catch(err) {
+            console.log('Error while sending message to DLQ: ', err);
+        };
+    };
+
+    async createDLQTopic(topic: string) {
         try {
             await this.kafeAdmin.connect();
             await this.kafeAdmin.createTopics({
-              topics: this.dlqTopic ? this.dlqTopic : 'Dead Letter Queue Message',
+              topics: [topic],
               numPartitions: 1,
               replicationFactor: 1
             });
@@ -75,13 +113,14 @@ class KafeDLQClient extends Kafka {
         } catch(err) {
             console.log(err);
         };
-
     };
 };
 
-const testClient = new KafeDLQClient({
+const kafka = new Kafka({
     clientId: 'test-client',
     brokers: ['localhost:9091', 'localhost:9092', 'localhost:9093']
 });
+
+const testClient = new KafeDLQClient(kafka);
 
 testClient.producer();

@@ -1,7 +1,7 @@
-
-export interface kafkaMessage {
-   key?: any,
-   value: any
+import { Message } from 'kafkajs';
+export interface producerMessages {
+   topic: string,
+   messages: Message[],
 }
 
 export interface failMessages {
