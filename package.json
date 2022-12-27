@@ -1,0 +1,21 @@
+{
+  "name": "kafe-dlq",
+  "version": "1.0.0",
+  "description": "Dead Letter Queue Implementation ",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./src/index.ts",
+    "build": "tsc",
+    "dev": "nodemon ./src/index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "kafkajs": "^2.2.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}
