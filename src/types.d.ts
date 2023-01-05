@@ -23,6 +23,7 @@ interface consumerSubscribeConfig {
  }
 
  interface consumerRunConfig {
+   eachBatchAutoResolve: boolean,
    eachMessage: ({
      topic,
      partition,
@@ -32,5 +33,5 @@ interface consumerSubscribeConfig {
      partition: number,
      message: any
    }) => any,
-   eachBatchAutoResolve: boolean,
+   
  }
