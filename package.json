@@ -2,7 +2,7 @@
   "name": "kafe-dlq",
   "version": "1.0.0",
   "description": "Dead Letter Queue Implementation ",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node ./src/index.ts",
@@ -16,6 +16,7 @@
     "kafkajs": "^2.2.3"
   },
   "devDependencies": {
+    "@types/node": "^18.11.18",
     "nodemon": "^2.0.20",
     "ts-node": "^10.9.1"
   }
