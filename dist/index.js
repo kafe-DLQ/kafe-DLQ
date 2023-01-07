@@ -33,7 +33,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KafeDLQClient = void 0;
-const kafkajs_1 = require("kafkajs");
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 class KafeDLQClient {
@@ -50,7 +49,6 @@ class KafeDLQClient {
     producer() {
         const DLQClient = this;
         const { kafeProducer, callback, sendToDLQ } = DLQClient;
-        console.log('Original Kafka producer: ', kafeProducer);
         const DLQProducer = Object.assign(Object.assign({}, kafeProducer), { connect() {
                 return kafeProducer.connect();
             },
@@ -137,7 +135,6 @@ class KafeDLQClient {
                     timestamp: Date.now(),
                     value: JSON.stringify(dlqMessageValue),
                 };
-                console.log('DLQ message original format:', dlqMessageValue, 'Sending message to DLQ: ', DLQMessage);
                 yield this.kafeProducer.connect();
                 yield this.kafeProducer.send({
                     topic: 'DeadLetterQueue',
@@ -173,42 +170,3 @@ class KafeDLQClient {
 }
 exports.KafeDLQClient = KafeDLQClient;
 ;
-const kafka = new kafkajs_1.Kafka({
-    clientId: 'test-client',
-    brokers: ['localhost:9091', 'localhost:9092', 'localhost:9093']
-});
-const callbackTest = (message) => {
-    return typeof message.value === 'string';
-};
-const testClient = new KafeDLQClient(kafka, callbackTest);
-testClient.producer();
-testClient.producer().connect()
-    .then(() => testClient.producer().send({
-    topic: 'topicGood',
-    messages: [{ key: 1, value: '1' }, { key: 2, value: '2' }, { key: 3, value: '3' }]
-}))
-    .then(() => testClient.producer().send({
-    topic: 'topicBad',
-    messages: [{ key: 1, value: 1 }, { key: 2, value: 2 }, { key: 3, value: '3' }]
-}))
-    .then(() => testClient.producer().send({
-    topic: 'topicGood',
-    messages: [{ key: 5, value: '5' }, { key: 6, value: '6' }, { key: 7, value: '7' }]
-}))
-    .then(() => console.log('code running here'))
-    .catch((err) => console.log(err));
-const testDLQConsumer = testClient.consumer({ groupId: 'checkDLQ' });
-testDLQConsumer.connect()
-    .then(() => {
-    testDLQConsumer.subscribe({ topics: ['DeadLetterQueue'] });
-})
-    .then(() => {
-    testDLQConsumer.run({
-        eachMessage: ({ topic, partition, message }) => __awaiter(void 0, void 0, void 0, function* () {
-            console.log({
-                value: JSON.parse(message.value.toString()),
-            });
-        })
-    });
-})
-    .catch((e) => console.log(`Error message from consumer: ${e.message}`));
