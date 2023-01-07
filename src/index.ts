@@ -11,7 +11,7 @@ class KafeDLQClient {
     kafeProducer: any;
     kafeConsumer: any;
     client: any;
-    callback?: (message: any) => boolean; 
+    callback?: (message: any) => boolean;
 
     constructor(client: any, callback?: any) {
 
@@ -29,8 +29,6 @@ class KafeDLQClient {
         const DLQClient = this;
         const { kafeProducer, callback, sendToDLQ } = DLQClient;
 
-        console.log('Original Kafka producer: ', kafeProducer);
-
         const DLQProducer = {
             ...kafeProducer,
             connect() {
@@ -46,9 +44,9 @@ class KafeDLQClient {
                         if (callback) {
                             if (callback(message.value) === false) {
                                 throw new Error(`Callback failed when producing message: ${message.value}`);
-                            }; 
+                            };
                         };
-                        
+
                         await kafeProducer.connect();
                         await kafeProducer.send({
                             topic,
@@ -61,11 +59,11 @@ class KafeDLQClient {
 
                         await sendToDLQ(
                             message,
-                            topic, 
+                            topic,
                             'Producer',
                             err.message);
                     };
-                };  
+                };
             },
         };
 
@@ -73,7 +71,7 @@ class KafeDLQClient {
     };
 
     consumer(groupId: { groupId: string }) {
-        
+
         const DLQClient = this;
         let { kafeConsumer, client, sendToDLQ } = DLQClient;
 
@@ -110,7 +108,7 @@ class KafeDLQClient {
 
     async sendToDLQ(message: Message, originalTopic: string, clientType: string, err: any) {
         if (!message || !originalTopic) return;
-        
+
         try {
             //Get all existing topics and see if the DLQ topic already exists
             const existingTopics = await this.kafeAdmin.listTopics();
@@ -131,8 +129,6 @@ class KafeDLQClient {
                 value: JSON.stringify(dlqMessageValue),
             };
 
-            console.log('DLQ message original format:', dlqMessageValue, 'Sending message to DLQ: ', DLQMessage);
-            
             await this.kafeProducer.connect();
             await this.kafeProducer.send({
                 topic: 'DeadLetterQueue',
@@ -161,48 +157,3 @@ class KafeDLQClient {
     };
 };
 
-const kafka = new Kafka({
-    clientId: 'test-client',
-    brokers: ['localhost:9091', 'localhost:9092', 'localhost:9093']
-});
-
-const callbackTest = (message: {key?: any, value: any, partition?: number, timestamp?: Date, headers?: any}) => {
-    return typeof message.value === 'string';
-};
-
-const testClient = new KafeDLQClient(kafka, callbackTest);
-testClient.producer();
-
-testClient.producer().connect()
-  .then(() => testClient.producer().send({
-    topic: 'topicGood',
-    messages: [{key: 1, value: '1'}, {key: 2, value: '2'}, {key: 3, value: '3'}]
-  }))
-  .then(()=> testClient.producer().send({
-    topic: 'topicBad',
-    messages: [{key: 1, value: 1}, {key: 2, value: 2}, {key: 3, value: '3'}]
-  }))
-  .then(()=> testClient.producer().send({
-    topic: 'topicGood',
-    messages: [{key: 5, value: '5'}, {key: 6, value: '6'}, {key: 7, value: '7'}]
-  }))
-  .then(()=> console.log('code running here'))
-  .catch((err: any) => console.log(err))
-
-
-
-  const testDLQConsumer = testClient.consumer({groupId: 'checkDLQ' });
-  testDLQConsumer.connect()
-    .then(()=> {
-        testDLQConsumer.subscribe({topics: ['DeadLetterQueue']})
-    })
-    .then(()=> {
-        testDLQConsumer.run({
-            eachMessage: async ({ topic, partition, message}: {topic: string, partition: number, message: any}) => {               
-                console.log({
-                    value: JSON.parse(message.value.toString()),
-                });
-            }
-        });
-    })
-    .catch((e: any) => console.log(`Error message from consumer: ${e.message}`));
