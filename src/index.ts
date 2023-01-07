@@ -157,3 +157,48 @@ class KafeDLQClient {
     };
 };
 
+const kafka = new Kafka({
+    clientId: 'test-client',
+    brokers: ['localhost:9091', 'localhost:9092', 'localhost:9093']
+});
+
+const callbackTest = (message: {key?: any, value: any, partition?: number, timestamp?: Date, headers?: any}) => {
+    return typeof message.value === 'string';
+};
+
+const testClient = new KafeDLQClient(kafka, callbackTest);
+testClient.producer();
+
+testClient.producer().connect()
+  .then(() => testClient.producer().send({
+    topic: 'topicGood',
+    messages: [{key: 1, value: '1'}, {key: 2, value: '2'}, {key: 3, value: '3'}]
+  }))
+  .then(()=> testClient.producer().send({
+    topic: 'topicBad',
+    messages: [{key: 1, value: 1}, {key: 2, value: 2}, {key: 3, value: '3'}]
+  }))
+  .then(()=> testClient.producer().send({
+    topic: 'topicGood',
+    messages: [{key: 5, value: '5'}, {key: 6, value: '6'}, {key: 7, value: '7'}]
+  }))
+  .then(()=> console.log('code running here'))
+  .catch((err: any) => console.log(err))
+
+
+
+  const testDLQConsumer = testClient.consumer({groupId: 'checkDLQ' });
+  testDLQConsumer.connect()
+    .then(()=> {
+        testDLQConsumer.subscribe({topics: ['DeadLetterQueue']})
+    })
+    .then(()=> {
+        testDLQConsumer.run({
+            eachMessage: async ({ topic, partition, message}: {topic: string, partition: number, message: any}) => {
+                console.log({
+                    value: JSON.parse(message.value.toString()),
+                });
+            }
+        });
+    })
+    .catch((e: any) => console.log(`Error message from consumer: ${e.message}`));
