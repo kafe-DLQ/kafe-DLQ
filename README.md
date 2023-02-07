@@ -30,7 +30,7 @@ Before importing Kafe-DLQ you will need to complete the following steps:
 ### Usage
 
 1. Run npm install Kafe-DLQ
-2. Create a .env file with a KAFKA_BROKERS variable set to the port and address of where you are hosting your cluster:
+2. Create a .env file with a KAFKA_BROKERS variable set to the port and address of where you are  hosting your cluster:
     ```
     KAFKA_BROKERS='localhost:9091,localhost:9092,localhost:9093'
     ```
@@ -78,7 +78,7 @@ testProducer.connect()
 
 ## Contributors
 
-- Oliver Zhang| [GitHub](https://https://github.com/zezang) | [Linkedin](https://www.linkedin.com/in/oliver-zhang91/)
+- Oliver Zhang| [GitHub](https://github.com/zezang) | [Linkedin](https://www.linkedin.com/in/oliver-zhang91/)
 - Yirou Chen | [GitHub](https://github.com/WarmDarkMatter) | [Linkedin](https://www.linkedin.com/in/yirouchen/)
 - Jacob Cole| [GitHub](https://github.com/WarmDarkMatter) | [Linkedin](https://www.linkedin.com/in/jacobcole34/)
 - Caro Gomez | [GitHub](https://github.com/Caro-Gomez) | [Linkedin](https://www.linkedin.com/in/carolina-llano-g%C3%B3mez/)
